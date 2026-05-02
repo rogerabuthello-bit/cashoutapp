@@ -1,0 +1,205 @@
+{
+  "entities": {
+    "tenant": {
+      "title": "Tenant",
+      "description": "A restaurant organization on the platform.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "subdomain_slug": { "type": "string" },
+        "plan": { "type": "string", "enum": ["starter", "pro", "enterprise"] },
+        "billing_email": { "type": "string", "format": "email" },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "subdomain_slug", "plan", "billing_email", "is_active", "created_at"]
+    },
+    "user": {
+      "title": "User",
+      "description": "An employee or admin of a restaurant.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "full_name": { "type": "string" },
+        "role": { "type": "string", "enum": ["superadmin", "admin", "manager", "server", "bartender", "boh"] },
+        "pos_register_email": { "type": "string" },
+        "current_debt_cents": { "type": "integer" },
+        "is_active": { "type": "boolean" },
+        "tipped_occupation_code": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenant_id", "email", "full_name", "role", "is_active", "created_at"]
+    },
+    "global_settings": {
+      "title": "Global Settings",
+      "description": "Restaurant-wide rules for tip pooling and cutoffs.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "house_tip_pct": { "type": "integer", "description": "Basis points (e.g. 700 = 7.00%)" },
+        "bar_tip_pct": { "type": "integer" },
+        "exclusion_keywords": { "type": "array", "items": { "type": "string" } },
+        "active_party_codes": { "type": "array", "items": { "type": "string" } },
+        "bar_am_cutoff_time": { "type": "string", "description": "e.g. '16:00'" },
+        "settings_version": { "type": "integer" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "house_tip_pct", "bar_tip_pct", "settings_version", "updated_at"]
+    },
+    "shift_record": {
+      "title": "Shift Record",
+      "description": "A single server's shift data and reconciliation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "shift_date": { "type": "string", "format": "date" },
+        "gross_receipts_cents": { "type": "integer" },
+        "tax_cents": { "type": "integer" },
+        "exclusions_cents": { "type": "integer" },
+        "amex_cents": { "type": "integer" },
+        "visa_cents": { "type": "integer" },
+        "mc_cents": { "type": "integer" },
+        "debit_cents": { "type": "integer" },
+        "pos_gratuity_cents": { "type": "integer" },
+        "actual_cash_drop_cents": { "type": "integer" },
+        "expected_cash_drop_cents": { "type": "integer" },
+        "csv_gross_cents": { "type": "integer" },
+        "csv_cards_cents": { "type": "integer" },
+        "admin_physical_count_cents": { "type": "integer" },
+        "variance_cents": { "type": "integer" },
+        "house_tipout_cents": { "type": "integer" },
+        "bar_tipout_cents": { "type": "integer" },
+        "net_payout_cents": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pending", "audited", "settled"] },
+        "settings_version_used": { "type": "integer" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "settled_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenant_id", "user_id", "shift_date", "status", "created_at"]
+    },
+    "petty_cash_entry": {
+      "title": "Petty Cash Entry",
+      "description": "Logs cash movements in the physical drawer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "entry_date": { "type": "string", "format": "date-time" },
+        "entry_type": { "type": "string", "enum": ["count", "expense", "deposit", "withdrawal"] },
+        "description": { "type": "string" },
+        "denominations": { "type": "object" },
+        "amount_cents": { "type": "integer" },
+        "running_balance_cents": { "type": "integer" },
+        "created_by": { "type": "string" }
+      },
+      "required": ["id", "tenant_id", "entry_date", "entry_type", "amount_cents", "running_balance_cents"]
+    },
+    "debt_entry": {
+      "title": "Debt Entry",
+      "description": "Tracks money owed between user and house.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "shift_id": { "type": "string" },
+        "amount_cents": { "type": "integer" },
+        "description": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenant_id", "user_id", "amount_cents", "created_at"]
+    },
+    "tip_pool": {
+      "title": "Tip Pool",
+      "description": "Aggregated tips for a shift or party.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "pool_type": { "type": "string", "enum": ["house", "bar_am", "bar_pm", "party"] },
+        "party_code": { "type": "string" },
+        "collection_date": { "type": "string", "format": "date" },
+        "total_amount_cents": { "type": "integer" },
+        "is_locked": { "type": "boolean" },
+        "locked_by": { "type": "string" },
+        "locked_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenant_id", "pool_type", "collection_date", "total_amount_cents", "is_locked"]
+    },
+    "tip_distribution": {
+      "title": "Tip Distribution",
+      "description": "Individual share of a tip pool.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "pool_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "points_assigned": { "type": "number" },
+        "calculated_share_cents": { "type": "integer" },
+        "paid_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenant_id", "pool_id", "user_id", "points_assigned", "calculated_share_cents"]
+    },
+    "audit_log": {
+      "title": "Audit Log",
+      "description": "System-wide tracking of sensitive actions.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "metadata": { "type": "object" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "action", "details", "created_at"]
+    },
+    "notification": {
+      "title": "Notification",
+      "description": "In-app alerts for users.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "is_read": { "type": "boolean" },
+        "link": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "title", "message", "type", "is_read", "created_at"]
+    },
+    "announcement": {
+      "title": "Announcement",
+      "description": "Broadcast messages to all staff.",
+      "type": "object",
+      "properties": {
+        "tenant_id": { "type": "string" },
+        "author_id": { "type": "string" },
+        "author_name": { "type": "string" },
+        "content": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenant_id", "author_id", "content", "created_at"]
+    }
+  },
+  "firestore": {
+    "/tenants/{tenantId}": { "schema": "tenant", "description": "Top-level tenant records." },
+    "/tenants/{tenantId}/users/{userId}": { "schema": "user", "description": "Users within a tenant." },
+    "/tenants/{tenantId}/settings/current": { "schema": "global_settings", "description": "Singleton settings document." },
+    "/tenants/{tenantId}/shifts/{shiftId}": { "schema": "shift_record", "description": "Daily shift reports." },
+    "/tenants/{tenantId}/petty_cash/{entryId}": { "schema": "petty_cash_entry", "description": "Petty cash ledger." },
+    "/tenants/{tenantId}/debt/{entryId}": { "schema": "debt_entry", "description": "Debt ledger." },
+    "/tenants/{tenantId}/tip_pools/{poolId}": { "schema": "tip_pool", "description": "Tip pool records." },
+    "/tenants/{tenantId}/tip_distributions/{distId}": { "schema": "tip_distribution", "description": "Records of who got what from which pool." },
+    "/tenants/{tenantId}/audit_logs/{logId}": { "schema": "audit_log", "description": "System audit logs." },
+    "/tenants/{tenantId}/notifications/{notifId}": { "schema": "notification", "description": "User notifications." },
+    "/tenants/{tenantId}/announcements/{annId}": { "schema": "announcement", "description": "Staff announcements." }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Cashouts",
+  "description": "Multi-tenant restaurant cash reconciliation, tip management, and staff analytics SaaS.",
+  "requestFramePermissions": []
+}

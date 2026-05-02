@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 0. Global deny-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(tenantId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)/users/$(request.auth.uid));
+    }
+
+    function getUserData(tenantId) {
+      return get(/databases/$(database)/documents/tenants/$(tenantId)/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin(tenantId) {
+      return isMember(tenantId) &&
+        getUserData(tenantId).role in ['admin', 'manager', 'superadmin'];
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Tenant-level ---
+    match /tenants/{tenantId} {
+      // Only authenticated users can read tenant metadata (e.g. for subdomain mapping)
+      // FIXED: was `if true` — unauthenticated users had full list access
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      // 1. Users
+      match /users/{userId} {
+        allow read: if isOwner(userId) || isMember(tenantId);
+        // FIXED: was `if isSignedIn()` — any logged-in user could create users in any tenant
+        allow create: if isAdmin(tenantId);
+        allow update: if isAdmin(tenantId) || (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pos_register_email']));
+        // Disallow hard deletes — use is_active: false instead
+        allow delete: if false;
+      }
+
+      // 2. Settings
+      match /settings/{docId} {
+        allow read: if isMember(tenantId);
+        allow write: if isAdmin(tenantId);
+      }
+
+      // 3. Shifts
+      match /shifts/{shiftId} {
+        allow read: if isMember(tenantId) && (resource.data.user_id == request.auth.uid || isAdmin(tenantId));
+        allow create: if isMember(tenantId) && request.resource.data.user_id == request.auth.uid;
+        allow update: if isAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      // 4. Tip Pools
+      match /tip_pools/{poolId} {
+        allow read: if isMember(tenantId);
+        allow write: if isAdmin(tenantId);
+      }
+
+      // 5. Tip Distributions
+      match /tip_distributions/{distId} {
+        allow read: if isMember(tenantId) && (resource.data.user_id == request.auth.uid || isAdmin(tenantId));
+        allow write: if isAdmin(tenantId);
+      }
+
+      // 6. Petty Cash
+      // FIXED: was `allow create: if isMember(tenantId)` — any server could add entries
+      match /petty_cash/{entryId} {
+        allow read: if isMember(tenantId);
+        allow create: if isAdmin(tenantId);
+        allow update: if false; // Entries are immutable; use a new entry to correct
+        allow delete: if false;
+      }
+
+      // 7. Debt Ledger
+      match /debt/{entryId} {
+        allow read: if isMember(tenantId) && (resource.data.user_id == request.auth.uid || isAdmin(tenantId));
+        allow create: if isAdmin(tenantId);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // 8. Notifications
+      match /notifications/{notifId} {
+        allow read: if isMember(tenantId) && resource.data.user_id == request.auth.uid;
+        allow create: if isMember(tenantId);
+        // Users can only mark their own notifications as read
+        allow update: if isMember(tenantId)
+          && resource.data.user_id == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+        allow delete: if false;
+      }
+
+      // 9. Announcements
+      match /announcements/{annId} {
+        allow read: if isMember(tenantId);
+        allow write: if isAdmin(tenantId);
+      }
+
+      // 10. Audit Logs — append-only for members, admin can read
+      match /audit_logs/{logId} {
+        allow read: if isAdmin(tenantId);
+        allow create: if isMember(tenantId);
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}
